@@ -1,0 +1,15 @@
+[tool]
+id = "com.jhellerstedt.dawarich"
+label = "Dawarich"
+versionCode = 1
+versionName = "0.1.0"
+permissions = [
+  "android.permission.INTERNET",
+  "android.permission.ACCESS_FINE_LOCATION",
+]
+# cleartext-http lets the tool reach a LAN Dawarich over plain HTTP.
+# HTTPS works either way; keep the capability so base URL scheme stays configurable.
+capabilities = ["cleartext-http"]
+# for the LightOS emulator, use the line below and build with -DlightSdk.allowAltServerPackage=true
+# serverPackage = "com.thelightphone.sdk.emulator"
+serverPackage = "com.lightos"
