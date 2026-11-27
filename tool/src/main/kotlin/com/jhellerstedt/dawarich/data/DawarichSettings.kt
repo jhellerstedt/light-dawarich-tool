@@ -67,6 +67,16 @@ class DawarichSettings(
         }
     }
 
+    /** Persist URL + API key from a scanned Dawarich Account QR (or manual entry). */
+    suspend fun saveConnection(baseUrl: String, apiKey: String) {
+        val normalized = DawarichClient.normalizeBaseUrl(baseUrl)
+        val encrypted = Base64.encodeToString(cipher.encrypt(apiKey.trim()), Base64.DEFAULT)
+        dataStore.edit { prefs ->
+            prefs[BASE_URL] = normalized
+            prefs[ENCRYPTED_API_KEY] = encrypted
+        }
+    }
+
     suspend fun saveStarTagId(tagId: Int?) {
         dataStore.edit { prefs ->
             if (tagId == null) {
