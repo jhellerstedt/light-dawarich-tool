@@ -84,8 +84,19 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                         }
 
                         SettingRow(
+                            label = "Log in with QR",
+                            value = "Scan Account → API access QR",
+                        ) {
+                            navigateTo(screenFactory = { QrLoginScreen(it) }) { result ->
+                                result
+                                    .onSuccess { credentials -> viewModel.saveFromQr(credentials) }
+                                    .onFailure { error -> viewModel.onQrScanFailed(error) }
+                            }
+                        }
+
+                        SettingRow(
                             label = "API key",
-                            value = if (state.hasApiKey) "Saved (encrypted)" else "Not set",
+                            value = if (state.hasApiKey) "Saved (encrypted)" else "Not set — or use QR",
                         ) {
                             editText(
                                 title = "API key",

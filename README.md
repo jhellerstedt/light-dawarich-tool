@@ -6,7 +6,7 @@ The tool id is `com.jhellerstedt.dawarich`. The current version is in [`tool/lig
 
 ## What it does
 
-You point the tool at your self-hosted Dawarich base URL (HTTP or HTTPS) and paste an API key. From the home screen you can:
+You point the tool at your self-hosted Dawarich base URL (HTTP or HTTPS) and sign in by scanning the Account → API access QR code, or by pasting an API key. From the home screen you can:
 
 - See the current GPS fix (with a LightOS default-location fallback)
 - Sync places, sort them by distance, and filter tagged places

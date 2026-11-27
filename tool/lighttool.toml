@@ -6,6 +6,7 @@ versionName = "0.1.0"
 permissions = [
   "android.permission.INTERNET",
   "android.permission.ACCESS_FINE_LOCATION",
+  "android.permission.CAMERA",
 ]
 # cleartext-http lets the tool reach a LAN Dawarich over plain HTTP.
 # HTTPS works either way; keep the capability so base URL scheme stays configurable.

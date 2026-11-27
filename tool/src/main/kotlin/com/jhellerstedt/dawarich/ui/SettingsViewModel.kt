@@ -2,6 +2,7 @@ package com.jhellerstedt.dawarich.ui
 
 import androidx.lifecycle.viewModelScope
 import com.jhellerstedt.dawarich.api.DawarichClient
+import com.jhellerstedt.dawarich.api.DawarichQrCredentials
 import com.jhellerstedt.dawarich.data.DawarichSettings
 import com.thelightphone.sdk.LightViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +68,30 @@ class SettingsViewModel(
             _uiState.update {
                 it.copy(hasApiKey = true, statusMessage = "Saved API key", errorMessage = null)
             }
+        }
+    }
+
+    fun saveFromQr(credentials: DawarichQrCredentials) {
+        viewModelScope.launch {
+            settings.saveConnection(credentials.serverUrl, credentials.apiKey)
+            _uiState.update {
+                it.copy(
+                    baseUrl = credentials.serverUrl,
+                    hasApiKey = true,
+                    statusMessage = "Logged in from QR",
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
+    fun onQrScanFailed(error: Throwable) {
+        if (error is ScanCancelled) return
+        _uiState.update {
+            it.copy(
+                errorMessage = error.message ?: "Could not read Dawarich QR",
+                statusMessage = null,
+            )
         }
     }
 
