@@ -55,12 +55,28 @@ class TagSuggestTest {
     }
 
     @Test
-    fun filterSuggestionsPrefersRecentWhenQueryBlank() {
-        val recent = listOf("Park", "Cafe")
-        assertEquals(
-            listOf("Park", "Cafe", "Coffee"),
-            TagSuggest.filterSuggestions(tags, query = "", recent = recent, limit = 8),
+    fun filterSuggestionsBlankShowsOnlyRecentCappedAtTwo() {
+        val manyTags = tags + listOf(
+            DawarichTag(id = 4, name = "Library"),
+            DawarichTag(id = 5, name = "Museum"),
+            DawarichTag(id = 6, name = "Office"),
+            DawarichTag(id = 7, name = "Shop"),
         )
+        val recent = listOf("Park", "Cafe", "Shop")
+        // Blank query: only the two most-recent known tags — not the full catalog.
+        assertEquals(
+            listOf("Park", "Cafe"),
+            TagSuggest.filterSuggestions(manyTags, query = "", recent = recent, limit = 8),
+        )
+        assertEquals(
+            emptyList(),
+            TagSuggest.filterSuggestions(manyTags, query = "", recent = emptyList(), limit = 8),
+        )
+    }
+
+    @Test
+    fun filterSuggestionsTypedQueryIsAutocompleteOnly() {
+        val recent = listOf("Park", "Cafe")
         assertEquals(
             listOf("Cafe", "Coffee"),
             TagSuggest.filterSuggestions(tags, query = "c", recent = recent, limit = 8),

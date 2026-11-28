@@ -1,14 +1,16 @@
 package com.jhellerstedt.dawarich.ui
 
 import androidx.lifecycle.viewModelScope
-import com.jhellerstedt.dawarich.api.DawarichApiException
 import com.jhellerstedt.dawarich.api.TimelinePointInput
+import com.jhellerstedt.dawarich.api.models.DawarichPlace
 import com.jhellerstedt.dawarich.data.DawarichConnection
 import com.jhellerstedt.dawarich.data.DawarichSettings
 import com.jhellerstedt.dawarich.location.Fix
 import com.jhellerstedt.dawarich.location.FixSource
 import com.jhellerstedt.dawarich.location.LocationHelper
 import com.jhellerstedt.dawarich.util.AddressFormat
+import com.jhellerstedt.dawarich.util.Geo
+import com.jhellerstedt.dawarich.util.PlaceDistance
 import com.thelightphone.sdk.LightViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,6 +28,8 @@ data class HomeUiState(
     val autoUploadEnabled: Boolean = true,
     val fix: Fix? = null,
     val addressLabel: String? = null,
+    /** Up to two nearest cached places for the home preview. */
+    val nearestPlaces: List<PlaceDistance> = emptyList(),
     val statusMessage: String? = null,
     val errorMessage: String? = null,
     val busy: Boolean = false,
@@ -37,6 +41,7 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private var cachedPlaces: List<DawarichPlace> = emptyList()
     private var geocodeJob: Job? = null
     private var autoUploadJob: Job? = null
     private var lastAutoUploadMs: Long = 0L
@@ -44,6 +49,7 @@ class HomeViewModel(
     init {
         viewModelScope.launch {
             refreshConnection()
+            reloadNearestPreview()
         }
         viewModelScope.launch {
             settings.autoUploadEnabled.collect { enabled ->
@@ -64,16 +70,36 @@ class HomeViewModel(
                 )
             }
             restartAutoUploadLoop()
+            reloadNearestPreview()
         }
     }
 
     fun onFix(fix: Fix?) {
         _uiState.update { it.copy(fix = fix) }
+        recomputeNearest()
         if (fix != null) {
             requestReverseGeocode(fix)
         } else {
             _uiState.update { it.copy(addressLabel = null) }
         }
+    }
+
+    /** Reload cached places and refresh the two-nearest home preview. */
+    fun reloadNearestPreview() {
+        viewModelScope.launch {
+            cachedPlaces = settings.loadCachedPlaces()
+            recomputeNearest()
+        }
+    }
+
+    private fun recomputeNearest() {
+        val origin = _uiState.value.fix?.toLatLng()
+        val nearest = if (origin == null) {
+            emptyList()
+        } else {
+            Geo.nearestPlaces(origin, cachedPlaces, limit = HOME_NEAREST_LIMIT)
+        }
+        _uiState.update { it.copy(nearestPlaces = nearest) }
     }
 
     fun clearMessages() {
@@ -171,5 +197,10 @@ class HomeViewModel(
         val primary = addressLabel?.takeIf { it.isNotBlank() }
             ?: AddressFormat.coordinates(fix.latitude, fix.longitude)
         return "$primary ($source$accuracy)"
+    }
+
+    companion object {
+        /** Home nested preview shows only this many nearest places. */
+        const val HOME_NEAREST_LIMIT = 2
     }
 }

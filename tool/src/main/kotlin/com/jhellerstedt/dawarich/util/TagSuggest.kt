@@ -40,14 +40,18 @@ object TagSuggest {
     }
 
     /**
-     * Autocomplete for filter/upload fields. Blank query surfaces [recent] first
-     * (still present among known tags), then remaining tag names.
+     * Filter/upload suggestions.
+     *
+     * - Blank [query]: only the most recent known tags (capped at [recentLimit],
+     *   default 2) — never the full tag catalog.
+     * - Non-blank [query]: autocomplete matches via [filterNames], capped at [limit].
      */
     fun filterSuggestions(
         tags: Iterable<DawarichTag>,
         query: String,
         recent: List<String> = emptyList(),
         limit: Int = 8,
+        recentLimit: Int = 2,
     ): List<String> {
         val unique = uniqueSorted(tags)
         val knownNames = unique.map { it.name }
@@ -59,13 +63,11 @@ object TagSuggest {
             .map { recentName ->
                 knownNames.first { it.equals(recentName, ignoreCase = true) }
             }
+            .take(recentLimit)
 
         val q = query.trim()
         if (q.isEmpty()) {
-            val rest = knownNames.filter { name ->
-                recentKnown.none { it.equals(name, ignoreCase = true) }
-            }
-            return (recentKnown + rest).take(limit)
+            return recentKnown
         }
 
         return filterNames(unique, q).take(limit)

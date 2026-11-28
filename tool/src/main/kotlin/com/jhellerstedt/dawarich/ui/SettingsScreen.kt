@@ -133,6 +133,13 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                             viewModel.toggleAutoUpload()
                         }
 
+                        SettingRow(
+                            label = "About",
+                            value = "Unofficial client notice",
+                        ) {
+                            navigateTo(screenFactory = { AboutScreen(it) })
+                        }
+
                         LightText(
                             text = "Clear settings",
                             variant = LightTextVariant.Copy,

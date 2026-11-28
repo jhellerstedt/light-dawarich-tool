@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 data class Fix(
@@ -39,7 +40,15 @@ enum class FixSource {
  */
 object LocationHelper {
     val RENEW_INTERVAL = 20.seconds
+    /** Default poll while actively using Places / Upload screens. */
     val POLL_INTERVAL = 2.seconds
+
+    /**
+     * Home screen GPS / nearest-preview poll. Slower than [POLL_INTERVAL] to
+     * cut battery and reverse-geocode traffic while the tool sits on home.
+     * Documented in README and About.
+     */
+    val HOME_POLL_INTERVAL = 30.seconds
 
     suspend fun hasFineLocationPermission(): Boolean {
         val result = checkPermission(Manifest.permission.ACCESS_FINE_LOCATION).asKotlinResult
@@ -79,11 +88,15 @@ object LocationHelper {
     /**
      * While [block] runs, keep a location updates lease alive and poll the current fix.
      * Invokes [onFix] whenever a usable current or default fix is available.
+     *
+     * @param pollInterval how often to read the current fix (default [POLL_INTERVAL]).
+     *   Use [HOME_POLL_INTERVAL] on the home screen.
      */
     suspend fun withLocationLease(
         onFix: suspend (Fix?) -> Unit,
+        pollInterval: Duration = POLL_INTERVAL,
         block: suspend () -> Unit = {
-            while (true) delay(POLL_INTERVAL)
+            while (true) delay(pollInterval)
         },
     ) {
         if (!hasFineLocationPermission()) {
@@ -102,7 +115,7 @@ object LocationHelper {
             val pollJob = launch {
                 while (isActive) {
                     onFix(resolveFix())
-                    delay(POLL_INTERVAL)
+                    delay(pollInterval)
                 }
             }
             try {

@@ -139,20 +139,15 @@ class PlacesScreen(sealedActivity: SealedLightActivity) :
                             )
                         }
 
-                        val recentShown = if (state.filterTagQuery.isBlank()) {
-                            state.recentFilterTags.filter { recent ->
-                                state.tagSuggestions.any { it.equals(recent, ignoreCase = true) }
-                            }.take(2)
-                        } else {
-                            emptyList()
-                        }
-                        if (recentShown.isNotEmpty()) {
+                        // Blank query → Recent only (≤2). Typed query → Autocomplete matches.
+                        // The two sections never appear together.
+                        if (state.filterTagQuery.isBlank() && state.tagSuggestions.isNotEmpty()) {
                             LightText(
                                 text = "Recent",
                                 variant = LightTextVariant.Superfine,
                                 modifier = Modifier.padding(top = 0.5f.gridUnitsAsDp()),
                             )
-                            recentShown.forEach { suggestion ->
+                            state.tagSuggestions.forEach { suggestion ->
                                 LightText(
                                     text = suggestion,
                                     variant = LightTextVariant.Copy,
@@ -165,17 +160,13 @@ class PlacesScreen(sealedActivity: SealedLightActivity) :
                                 )
                             }
                         }
-
-                        val autocomplete = state.tagSuggestions.filter { name ->
-                            recentShown.none { it.equals(name, ignoreCase = true) }
-                        }
-                        if (autocomplete.isNotEmpty()) {
+                        if (state.filterTagQuery.isNotBlank() && state.tagSuggestions.isNotEmpty()) {
                             LightText(
-                                text = "Suggestions",
+                                text = "Autocomplete",
                                 variant = LightTextVariant.Superfine,
                                 modifier = Modifier.padding(top = 0.5f.gridUnitsAsDp()),
                             )
-                            autocomplete.forEach { suggestion ->
+                            state.tagSuggestions.forEach { suggestion ->
                                 LightText(
                                     text = suggestion,
                                     variant = LightTextVariant.Copy,

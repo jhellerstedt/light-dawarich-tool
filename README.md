@@ -9,12 +9,12 @@ The tool id is `com.jhellerstedt.dawarich`. The current version is in [`tool/lig
 You point the tool at your self-hosted Dawarich base URL (HTTP or HTTPS) and sign in from **Settings** (gear, upper right) by scanning the Account → API access QR code, or by pasting an API key. From the home screen you can:
 
 - See the current GPS fix as a nearby street address when Dawarich reverse-geocoding works (coordinates as fallback)
-- Sync places, sort them by distance, and filter by tag (autocomplete from place tags, plus two recent filters)
+- Home nests the **two nearest** cached places (tap through for sync / tag filter / star; filter blank shows at most two recent tags, typing shows autocomplete)
 - Star / save a place at the current fix
 - Manually upload the current fix as a timeline point, with an optional note and tag (tag suggestions come from place tags on the server)
 - Auto-upload a point every 5 minutes while the tool is open (on by default; toggle in Settings)
 
-Places are cached on the phone so the nearest list still opens offline. There is no deep link into Light Directions; the tool shows address/coordinates and distance so you can open Directions yourself. The unofficial-client notice lives under **About**.
+Places are cached on the phone so the nearest list still opens offline. On the home screen the location fix and nearest preview refresh every **30 seconds** (`LocationHelper.HOME_POLL_INTERVAL`) to save battery and reverse-geocode traffic; Places and Upload still poll about every 2 seconds. There is no deep link into Light Directions; the tool shows address/coordinates and distance so you can open Directions yourself. The unofficial-client notice lives under **Settings → About**.
 
 ## What leaves the phone
 

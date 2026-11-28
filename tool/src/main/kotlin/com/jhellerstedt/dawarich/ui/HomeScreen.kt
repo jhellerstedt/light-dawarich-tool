@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.jhellerstedt.dawarich.DawarichServices
 import com.jhellerstedt.dawarich.TOOL_DISPLAY_NAME
 import com.jhellerstedt.dawarich.location.LocationHelper
+import com.jhellerstedt.dawarich.util.Geo
 import com.thelightphone.sdk.InitialScreen
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.SealedLightActivity
@@ -62,6 +63,7 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
         LaunchedEffect(Unit) {
             LocationHelper.withLocationLease(
                 onFix = { viewModel.onFix(it) },
+                pollInterval = LocationHelper.HOME_POLL_INTERVAL,
             )
         }
 
@@ -118,9 +120,51 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                             )
                         }
 
-                        MenuRow("Nearest places") {
-                            navigateTo(screenFactory = { PlacesScreen(it) })
+                        LightText(
+                            text = "Nearest places",
+                            variant = LightTextVariant.Superfine,
+                            modifier = Modifier.padding(top = 0.5f.gridUnitsAsDp()),
+                        )
+                        if (state.nearestPlaces.isEmpty()) {
+                            LightText(
+                                text = "None nearby — tap for sync / filter",
+                                variant = LightTextVariant.Copy,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 0.35f.gridUnitsAsDp())
+                                    .lightClickable(onClick = {
+                                        navigateTo(screenFactory = { PlacesScreen(it) }) {
+                                            viewModel.reloadNearestPreview()
+                                        }
+                                    }),
+                            )
+                        } else {
+                            state.nearestPlaces.forEach { item ->
+                                val distance = if (item.distanceMeters.isFinite()) {
+                                    Geo.formatDistance(item.distanceMeters)
+                                } else {
+                                    "—"
+                                }
+                                LightText(
+                                    text = "${item.place.name} · $distance",
+                                    variant = LightTextVariant.Copy,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 0.35f.gridUnitsAsDp())
+                                        .lightClickable(onClick = {
+                                            navigateTo(screenFactory = { PlacesScreen(it) }) {
+                                                viewModel.reloadNearestPreview()
+                                            }
+                                        }),
+                                )
+                            }
                         }
+                        LightText(
+                            text = "Refreshes every ${LocationHelper.HOME_POLL_INTERVAL.inWholeSeconds}s on home",
+                            variant = LightTextVariant.Superfine,
+                            modifier = Modifier.padding(bottom = 0.75f.gridUnitsAsDp()),
+                        )
+
                         MenuRow("Upload current point") {
                             navigateTo(screenFactory = { UploadPointScreen(it) }) {
                                 viewModel.clearMessages()
@@ -128,9 +172,6 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                                     viewModel.refreshConnection()
                                 }
                             }
-                        }
-                        MenuRow("About") {
-                            navigateTo(screenFactory = { AboutScreen(it) })
                         }
 
                         if (state.busy) {
@@ -164,6 +205,7 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                                 onClick = {
                                     viewModel.clearMessages()
                                     viewModel.refreshConnection()
+                                    viewModel.reloadNearestPreview()
                                     state.fix?.let { viewModel.onFix(it) }
                                 },
                                 contentDescription = "Refresh",
