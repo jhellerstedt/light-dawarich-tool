@@ -38,7 +38,10 @@ class DawarichSettings(
     val starTagId: Flow<Int?> =
         dataStore.data.map { prefs -> prefs[STAR_TAG_ID] }
 
-    /** Default on: auto-upload a timeline point every 5 minutes while the tool is open. */
+    /**
+     * Default on: continuous tracking uploads one timeline point when the tool opens
+     * (until a background location lease exists).
+     */
     val autoUploadEnabled: Flow<Boolean> =
         dataStore.data.map { prefs -> prefs[AUTO_UPLOAD_ENABLED] ?: true }
 
@@ -175,7 +178,5 @@ class DawarichSettings(
         private val PLACES_CACHE = stringPreferencesKey("dawarich_places_cache")
         private val TAGS_CACHE = stringPreferencesKey("dawarich_tags_cache")
         private val RECENT_FILTER_TAGS = stringPreferencesKey("dawarich_recent_filter_tags")
-
-        const val AUTO_UPLOAD_INTERVAL_MS = 5L * 60L * 1000L
     }
 }

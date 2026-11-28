@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.jhellerstedt.dawarich.DawarichServices
 import com.jhellerstedt.dawarich.TOOL_DISPLAY_NAME
 import com.jhellerstedt.dawarich.location.LocationHelper
+import com.jhellerstedt.dawarich.util.ContinuousTracking
 import com.jhellerstedt.dawarich.util.Geo
 import com.thelightphone.sdk.InitialScreen
 import com.thelightphone.sdk.LightScreen
@@ -112,9 +113,9 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                             modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
                         )
 
-                        if (state.autoUploadEnabled && state.configured) {
+                        if (ContinuousTracking.showHomeAutoUploadChrome(state.autoUploadEnabled)) {
                             LightText(
-                                text = "Auto-upload every 5 min while open",
+                                text = ContinuousTracking.settingsValue(enabled = true),
                                 variant = LightTextVariant.Superfine,
                                 modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
                             )

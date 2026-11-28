@@ -12,7 +12,7 @@ You point the tool at your self-hosted Dawarich base URL (HTTP or HTTPS) and sig
 - Home nests the **two nearest** cached places (tap through for sync / tag filter / star; filter blank shows at most two recent tags, typing shows autocomplete)
 - Star / save a place at the current fix
 - Manually upload the current fix as a timeline point, with an optional note and tag (tag suggestions come from place tags on the server)
-- Auto-upload a point every 5 minutes while the tool is open (on by default; toggle in Settings)
+- Continuous tracking (on by default; Settings toggle): upload one point when the tool opens (no background lease yet)
 
 Places are cached on the phone so the nearest list still opens offline. On the home screen the location fix and nearest preview refresh every **30 seconds** (`LocationHelper.HOME_POLL_INTERVAL`) to save battery and reverse-geocode traffic; Places and Upload still poll about every 2 seconds. There is no deep link into Light Directions; the tool shows address/coordinates and distance so you can open Directions yourself. The unofficial-client notice lives under **Settings → About**.
 
@@ -55,7 +55,7 @@ Still open:
 
 - Confirm real GPS on a retail Light Phone (likely LightOS v592+)
 - Dedicated Dawarich tags list API (today tags are collected from places)
-- Background tracking (Light location lease is foreground-only)
+- Background tracking / continuous lease (today: upload-once-on-open when tracking is on)
 - Richer timeline batching while walking
 - Portal submission polish
 

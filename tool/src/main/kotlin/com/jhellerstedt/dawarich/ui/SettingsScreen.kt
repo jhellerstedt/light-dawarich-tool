@@ -11,6 +11,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.jhellerstedt.dawarich.DawarichServices
+import com.jhellerstedt.dawarich.util.ContinuousTracking
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.SealedLightActivity
 import com.thelightphone.sdk.textentry.LightTextEditResult
@@ -123,12 +124,8 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                         }
 
                         SettingRow(
-                            label = "Auto-upload every 5 min",
-                            value = if (state.autoUploadEnabled) {
-                                "On (while tool is open)"
-                            } else {
-                                "Off"
-                            },
+                            label = ContinuousTracking.SETTINGS_LABEL,
+                            value = ContinuousTracking.settingsValue(state.autoUploadEnabled),
                         ) {
                             viewModel.toggleAutoUpload()
                         }

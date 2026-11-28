@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.jhellerstedt.dawarich.api.DawarichClient
 import com.jhellerstedt.dawarich.api.DawarichQrCredentials
 import com.jhellerstedt.dawarich.data.DawarichSettings
+import com.jhellerstedt.dawarich.util.ContinuousTracking
 import com.thelightphone.sdk.LightViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -127,11 +128,7 @@ class SettingsViewModel(
             _uiState.update {
                 it.copy(
                     autoUploadEnabled = next,
-                    statusMessage = if (next) {
-                        "Auto-upload every 5 min (while tool is open)"
-                    } else {
-                        "Auto-upload off"
-                    },
+                    statusMessage = ContinuousTracking.toggleStatusMessage(next),
                     errorMessage = null,
                 )
             }
