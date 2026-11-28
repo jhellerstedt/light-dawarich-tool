@@ -15,6 +15,7 @@ data class SettingsUiState(
     val baseUrl: String = "",
     val hasApiKey: Boolean = false,
     val starTagId: String = "",
+    val autoUploadEnabled: Boolean = true,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
 )
@@ -36,6 +37,8 @@ class SettingsViewModel(
                 baseUrl = connection?.baseUrl.orEmpty(),
                 hasApiKey = connection != null,
                 starTagId = connection?.starTagId?.toString().orEmpty(),
+                autoUploadEnabled = connection?.autoUploadEnabled
+                    ?: settings.isAutoUploadEnabled(),
             )
         }
     }
@@ -117,11 +120,33 @@ class SettingsViewModel(
         }
     }
 
+    fun toggleAutoUpload() {
+        viewModelScope.launch {
+            val next = !_uiState.value.autoUploadEnabled
+            settings.saveAutoUploadEnabled(next)
+            _uiState.update {
+                it.copy(
+                    autoUploadEnabled = next,
+                    statusMessage = if (next) {
+                        "Auto-upload every 5 min (while tool is open)"
+                    } else {
+                        "Auto-upload off"
+                    },
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
     fun clearAll() {
         viewModelScope.launch {
+            val autoUpload = settings.isAutoUploadEnabled()
             settings.clearCredentials()
             _uiState.update {
-                SettingsUiState(statusMessage = "Cleared Dawarich settings")
+                SettingsUiState(
+                    autoUploadEnabled = autoUpload,
+                    statusMessage = "Cleared Dawarich settings",
+                )
             }
         }
     }

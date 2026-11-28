@@ -70,3 +70,47 @@ data class TimelinePointProperties(
     val speed: Double? = null,
     @SerialName("device_id") val deviceId: String = "light-phone",
 )
+
+@Serializable
+data class NearbyPlacesResponse(
+    val places: List<NearbyPlace> = emptyList(),
+)
+
+@Serializable
+data class NearbyPlace(
+    val name: String = "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    val distance: Double? = null,
+    val type: String? = null,
+    val street: String? = null,
+    val housenumber: String? = null,
+    val city: String? = null,
+    val country: String? = null,
+    val postcode: String? = null,
+    val source: String? = null,
+)
+
+@Serializable
+data class CreateNoteBody(
+    val note: CreateNoteRequest,
+)
+
+@Serializable
+data class CreateNoteRequest(
+    val title: String? = null,
+    val body: String? = null,
+    val latitude: Double,
+    val longitude: Double,
+    @SerialName("noted_at") val notedAt: String,
+)
+
+@Serializable
+data class DawarichNote(
+    val id: Int,
+    val title: String? = null,
+    val body: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    @SerialName("noted_at") val notedAt: String? = null,
+)

@@ -6,14 +6,15 @@ The tool id is `com.jhellerstedt.dawarich`. The current version is in [`tool/lig
 
 ## What it does
 
-You point the tool at your self-hosted Dawarich base URL (HTTP or HTTPS) and sign in by scanning the Account → API access QR code, or by pasting an API key. From the home screen you can:
+You point the tool at your self-hosted Dawarich base URL (HTTP or HTTPS) and sign in from **Settings** (gear, upper right) by scanning the Account → API access QR code, or by pasting an API key. From the home screen you can:
 
-- See the current GPS fix (with a LightOS default-location fallback)
+- See the current GPS fix as a nearby street address when Dawarich reverse-geocoding works (coordinates as fallback)
 - Sync places, sort them by distance, and filter tagged places
 - Star / save a place at the current fix
-- Upload the current fix as a timeline point (`POST /api/v1/points`)
+- Manually upload the current fix as a timeline point, with an optional note and tag (tag suggestions come from place tags on the server)
+- Auto-upload a point every 5 minutes while the tool is open (on by default; toggle in Settings)
 
-Places are cached on the phone so the nearest list still opens offline. There is no deep link into Light Directions; the tool shows coordinates and distance so you can open Directions yourself.
+Places are cached on the phone so the nearest list still opens offline. There is no deep link into Light Directions; the tool shows address/coordinates and distance so you can open Directions yourself. The unofficial-client notice lives under **About**.
 
 ## What leaves the phone
 
@@ -50,11 +51,12 @@ A `v*` tag builds the release APK and attaches it to a GitHub Release. Bump `ver
 
 ## Scaffold status
 
-This is an early scaffold. Still open:
+Still open:
 
 - Confirm real GPS on a retail Light Phone (likely LightOS v592+)
-- Hardening against Dawarich API quirks (pagination, tag query encoding)
-- Richer timeline batching while walking (foreground only; no background tracking)
+- Dedicated Dawarich tags list API (today tags are collected from places)
+- Background tracking (Light location lease is foreground-only)
+- Richer timeline batching while walking
 - Portal submission polish
 
 ## Light SDK

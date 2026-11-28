@@ -3,11 +3,13 @@ package com.jhellerstedt.dawarich.data
 import android.util.Base64
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.jhellerstedt.dawarich.api.DawarichClient
 import com.jhellerstedt.dawarich.api.models.DawarichPlace
+import com.jhellerstedt.dawarich.api.models.DawarichTag
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -18,6 +20,7 @@ data class DawarichConnection(
     val baseUrl: String,
     val apiKey: String,
     val starTagId: Int? = null,
+    val autoUploadEnabled: Boolean = true,
 )
 
 class DawarichSettings(
@@ -35,6 +38,10 @@ class DawarichSettings(
     val starTagId: Flow<Int?> =
         dataStore.data.map { prefs -> prefs[STAR_TAG_ID] }
 
+    /** Default on: auto-upload a timeline point every 5 minutes while the tool is open. */
+    val autoUploadEnabled: Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[AUTO_UPLOAD_ENABLED] ?: true }
+
     val cachedPlacesJson: Flow<String?> =
         dataStore.data.map { prefs -> prefs[PLACES_CACHE] }
 
@@ -50,8 +57,12 @@ class DawarichSettings(
             baseUrl = url,
             apiKey = apiKey,
             starTagId = prefs[STAR_TAG_ID],
+            autoUploadEnabled = prefs[AUTO_UPLOAD_ENABLED] ?: true,
         )
     }
+
+    suspend fun isAutoUploadEnabled(): Boolean =
+        dataStore.data.first()[AUTO_UPLOAD_ENABLED] ?: true
 
     suspend fun saveBaseUrl(rawUrl: String) {
         val normalized = DawarichClient.normalizeBaseUrl(rawUrl)
@@ -87,18 +98,33 @@ class DawarichSettings(
         }
     }
 
+    suspend fun saveAutoUploadEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[AUTO_UPLOAD_ENABLED] = enabled
+        }
+    }
+
     suspend fun clearCredentials() {
         dataStore.edit { prefs ->
             prefs.remove(BASE_URL)
             prefs.remove(ENCRYPTED_API_KEY)
             prefs.remove(STAR_TAG_ID)
             prefs.remove(PLACES_CACHE)
+            prefs.remove(TAGS_CACHE)
+            // Keep auto-upload preference across credential clears.
         }
     }
 
     suspend fun cachePlaces(places: List<DawarichPlace>) {
         dataStore.edit { prefs ->
             prefs[PLACES_CACHE] = json.encodeToString(places)
+            prefs[TAGS_CACHE] = json.encodeToString(places.flatMap { it.tags }.distinctBy { it.id })
+        }
+    }
+
+    suspend fun cacheTags(tags: List<DawarichTag>) {
+        dataStore.edit { prefs ->
+            prefs[TAGS_CACHE] = json.encodeToString(tags.distinctBy { it.id })
         }
     }
 
@@ -108,6 +134,15 @@ class DawarichSettings(
             .getOrDefault(emptyList())
     }
 
+    suspend fun loadCachedTags(): List<DawarichTag> {
+        val raw = dataStore.data.first()[TAGS_CACHE]
+        if (raw != null) {
+            return runCatching { json.decodeFromString<List<DawarichTag>>(raw) }
+                .getOrDefault(emptyList())
+        }
+        return loadCachedPlaces().flatMap { it.tags }.distinctBy { it.id }
+    }
+
     fun openClient(connection: DawarichConnection): DawarichClient =
         DawarichClient(connection.baseUrl, connection.apiKey)
 
@@ -115,6 +150,10 @@ class DawarichSettings(
         private val BASE_URL = stringPreferencesKey("dawarich_base_url")
         private val ENCRYPTED_API_KEY = stringPreferencesKey("dawarich_encrypted_api_key")
         private val STAR_TAG_ID = intPreferencesKey("dawarich_star_tag_id")
+        private val AUTO_UPLOAD_ENABLED = booleanPreferencesKey("dawarich_auto_upload_enabled")
         private val PLACES_CACHE = stringPreferencesKey("dawarich_places_cache")
+        private val TAGS_CACHE = stringPreferencesKey("dawarich_tags_cache")
+
+        const val AUTO_UPLOAD_INTERVAL_MS = 5L * 60L * 1000L
     }
 }

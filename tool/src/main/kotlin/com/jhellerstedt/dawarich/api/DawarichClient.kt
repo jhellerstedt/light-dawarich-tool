@@ -1,12 +1,19 @@
 package com.jhellerstedt.dawarich.api
 
+import com.jhellerstedt.dawarich.api.models.CreateNoteBody
+import com.jhellerstedt.dawarich.api.models.CreateNoteRequest
 import com.jhellerstedt.dawarich.api.models.CreatePlaceBody
 import com.jhellerstedt.dawarich.api.models.CreatePlaceRequest
+import com.jhellerstedt.dawarich.api.models.DawarichNote
 import com.jhellerstedt.dawarich.api.models.DawarichPlace
+import com.jhellerstedt.dawarich.api.models.DawarichTag
+import com.jhellerstedt.dawarich.api.models.NearbyPlace
+import com.jhellerstedt.dawarich.api.models.NearbyPlacesResponse
 import com.jhellerstedt.dawarich.api.models.TimelineBatchRequest
 import com.jhellerstedt.dawarich.api.models.TimelineLocationFeature
 import com.jhellerstedt.dawarich.api.models.TimelinePointGeometry
 import com.jhellerstedt.dawarich.api.models.TimelinePointProperties
+import com.jhellerstedt.dawarich.util.TagSuggest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpRequestTimeoutException
@@ -95,6 +102,44 @@ class DawarichClient(
         return postJson("points", payload)
     }
 
+    /**
+     * Reverse-ish lookup via Dawarich's Photon-backed nearby search
+     * (`GET /api/v1/places/nearby`).
+     */
+    suspend fun nearbyPlaces(
+        latitude: Double,
+        longitude: Double,
+        radiusKm: Double = 0.5,
+        limit: Int = 5,
+    ): List<NearbyPlace> {
+        val body = get(
+            "places/nearby",
+            linkedMapOf(
+                "api_key" to apiKey,
+                "latitude" to latitude.toString(),
+                "longitude" to longitude.toString(),
+                "radius" to radiusKm.toString(),
+                "limit" to limit.toString(),
+            ),
+        )
+        return json.decodeFromString<NearbyPlacesResponse>(body).places
+    }
+
+    /**
+     * Standalone note at a coordinate (`POST /api/v1/notes`).
+     * There is no public tags index; collect tags from [listPlaces] instead.
+     */
+    suspend fun createNote(request: CreateNoteRequest): DawarichNote {
+        val body = postJson("notes", CreateNoteBody(note = request))
+        return json.decodeFromString(body)
+    }
+
+    /** Deduped tags attached to the user's places (no dedicated tags list API). */
+    suspend fun listTagsFromPlaces(): List<DawarichTag> {
+        val places = listPlaces()
+        return TagSuggest.uniqueSorted(places.flatMap { it.tags })
+    }
+
     private suspend fun getWithRepeatedTagIds(
         filter: String?,
         maskPrivacyZones: Boolean,
@@ -171,7 +216,7 @@ class DawarichClient(
         get() = "${baseUrl.trimEnd('/')}/api/v1"
 
     companion object {
-        private const val USER_AGENT = "DawarichLightOS/0.1"
+        private const val USER_AGENT = "DawarichLightOS/0.2"
 
         fun normalizeBaseUrl(input: String): String {
             var url = input.trim()
