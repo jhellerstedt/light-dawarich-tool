@@ -38,6 +38,20 @@ class GeoTest {
     }
 
     @Test
+    fun nearestPlacesHonorsLimit() {
+        val origin = LatLng(0.0, 0.0)
+        val places = listOf(
+            DawarichPlace(id = 1, name = "A", latitude = 0.01, longitude = 0.0),
+            DawarichPlace(id = 2, name = "B", latitude = 0.02, longitude = 0.0),
+            DawarichPlace(id = 3, name = "C", latitude = 0.03, longitude = 0.0),
+        )
+        assertEquals(
+            listOf("A", "B"),
+            Geo.nearestPlaces(origin, places, limit = 2).map { it.place.name },
+        )
+    }
+
+    @Test
     fun formatDistanceUsesMetersThenKilometers() {
         assertEquals("250 m", Geo.formatDistance(250.0))
         assertEquals("1.5 km", Geo.formatDistance(1_500.0))

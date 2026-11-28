@@ -76,7 +76,9 @@ class AboutScreen(sealedActivity: SealedLightActivity) :
                         LightText(
                             text = "Location is only tracked while this tool is open. " +
                                 "Auto-upload (every 5 minutes when enabled) also runs only " +
-                                "in the foreground.",
+                                "in the foreground. On the home screen, the location fix and " +
+                                "two nearest places refresh every 30 seconds to save battery " +
+                                "and data; Places and Upload still poll about every 2 seconds.",
                             variant = LightTextVariant.Superfine,
                         )
                     }
