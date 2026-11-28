@@ -9,16 +9,15 @@ import com.jhellerstedt.dawarich.location.Fix
 import com.jhellerstedt.dawarich.location.FixSource
 import com.jhellerstedt.dawarich.location.LocationHelper
 import com.jhellerstedt.dawarich.util.AddressFormat
+import com.jhellerstedt.dawarich.util.ContinuousTracking
 import com.jhellerstedt.dawarich.util.Geo
 import com.jhellerstedt.dawarich.util.PlaceDistance
 import com.thelightphone.sdk.LightViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -43,8 +42,8 @@ class HomeViewModel(
 
     private var cachedPlaces: List<DawarichPlace> = emptyList()
     private var geocodeJob: Job? = null
-    private var autoUploadJob: Job? = null
-    private var lastAutoUploadMs: Long = 0L
+    private var uploadedOnOpen = false
+    private var uploadOnOpenJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -54,7 +53,7 @@ class HomeViewModel(
         viewModelScope.launch {
             settings.autoUploadEnabled.collect { enabled ->
                 _uiState.update { it.copy(autoUploadEnabled = enabled) }
-                restartAutoUploadLoop()
+                maybeUploadOnOpen()
             }
         }
     }
@@ -69,8 +68,8 @@ class HomeViewModel(
                         ?: settings.isAutoUploadEnabled(),
                 )
             }
-            restartAutoUploadLoop()
             reloadNearestPreview()
+            maybeUploadOnOpen()
         }
     }
 
@@ -79,6 +78,7 @@ class HomeViewModel(
         recomputeNearest()
         if (fix != null) {
             requestReverseGeocode(fix)
+            maybeUploadOnOpen()
         } else {
             _uiState.update { it.copy(addressLabel = null) }
         }
@@ -106,43 +106,30 @@ class HomeViewModel(
         _uiState.update { it.copy(statusMessage = null, errorMessage = null) }
     }
 
-    /** Quiet timeline upload used by the 5-minute auto-upload loop (no note/tag). */
-    fun autoUploadCurrentPoint() {
-        viewModelScope.launch {
+    /**
+     * Quiet once-per-open timeline upload when continuous tracking is enabled.
+     * Waits for a fix; does not retry after a network failure in the same open.
+     */
+    private fun maybeUploadOnOpen() {
+        if (!ContinuousTracking.shouldUploadOnOpen(
+                enabled = _uiState.value.autoUploadEnabled,
+                configured = _uiState.value.configured,
+                alreadyUploadedThisOpen = uploadedOnOpen,
+            )
+        ) {
+            return
+        }
+        if (uploadOnOpenJob?.isActive == true) return
+        uploadOnOpenJob = viewModelScope.launch {
             val connection = settings.getConnection() ?: return@launch
             if (!settings.isAutoUploadEnabled()) return@launch
             val fix = _uiState.value.fix ?: LocationHelper.resolveFix() ?: return@launch
+            uploadedOnOpen = true
             try {
                 uploadFix(connection, fix)
-                lastAutoUploadMs = System.currentTimeMillis()
-                _uiState.update {
-                    it.copy(statusMessage = "Auto-uploaded point", errorMessage = null)
-                }
+                // Quiet success: home keeps only the manual upload path for chrome.
             } catch (_: Exception) {
-                // Keep the loop alive; surface a soft status without blocking the UI.
-                _uiState.update { it.copy(statusMessage = "Auto-upload failed; will retry") }
-            }
-        }
-    }
-
-    private fun restartAutoUploadLoop() {
-        val enabled = _uiState.value.autoUploadEnabled && _uiState.value.configured
-        if (!enabled) {
-            autoUploadJob?.cancel()
-            autoUploadJob = null
-            return
-        }
-        if (autoUploadJob?.isActive == true) return
-        autoUploadJob = viewModelScope.launch {
-            while (isActive) {
-                delay(DawarichSettings.AUTO_UPLOAD_INTERVAL_MS)
-                if (!settings.isAutoUploadEnabled()) break
-                if (settings.getConnection() == null) break
-                val now = System.currentTimeMillis()
-                if (now - lastAutoUploadMs < DawarichSettings.AUTO_UPLOAD_INTERVAL_MS / 2) {
-                    continue
-                }
-                autoUploadCurrentPoint()
+                _uiState.update { it.copy(statusMessage = "Upload on open failed") }
             }
         }
     }
