@@ -143,6 +143,27 @@ class DawarichSettings(
         return loadCachedPlaces().flatMap { it.tags }.distinctBy { it.id }
     }
 
+    /** Up to two most recent place-filter tag names (newest first). */
+    suspend fun loadRecentFilterTags(): List<String> {
+        val raw = dataStore.data.first()[RECENT_FILTER_TAGS] ?: return emptyList()
+        return runCatching { json.decodeFromString<List<String>>(raw) }
+            .getOrDefault(emptyList())
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .take(2)
+    }
+
+    suspend fun saveRecentFilterTags(names: List<String>) {
+        val trimmed = names.map { it.trim() }.filter { it.isNotEmpty() }.take(2)
+        dataStore.edit { prefs ->
+            if (trimmed.isEmpty()) {
+                prefs.remove(RECENT_FILTER_TAGS)
+            } else {
+                prefs[RECENT_FILTER_TAGS] = json.encodeToString(trimmed)
+            }
+        }
+    }
+
     fun openClient(connection: DawarichConnection): DawarichClient =
         DawarichClient(connection.baseUrl, connection.apiKey)
 
@@ -153,6 +174,7 @@ class DawarichSettings(
         private val AUTO_UPLOAD_ENABLED = booleanPreferencesKey("dawarich_auto_upload_enabled")
         private val PLACES_CACHE = stringPreferencesKey("dawarich_places_cache")
         private val TAGS_CACHE = stringPreferencesKey("dawarich_tags_cache")
+        private val RECENT_FILTER_TAGS = stringPreferencesKey("dawarich_recent_filter_tags")
 
         const val AUTO_UPLOAD_INTERVAL_MS = 5L * 60L * 1000L
     }
