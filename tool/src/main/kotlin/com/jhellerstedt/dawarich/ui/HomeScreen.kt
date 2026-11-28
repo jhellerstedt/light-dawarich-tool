@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import com.jhellerstedt.dawarich.DawarichServices
 import com.jhellerstedt.dawarich.TOOL_DISPLAY_NAME
-import com.jhellerstedt.dawarich.UNOFFICIAL_DISCLAIMER
 import com.jhellerstedt.dawarich.location.LocationHelper
 import com.thelightphone.sdk.InitialScreen
 import com.thelightphone.sdk.LightScreen
@@ -75,6 +74,15 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                 Column(modifier = Modifier.fillMaxSize()) {
                     LightTopBar(
                         center = LightTopBarCenter.Text(TOOL_DISPLAY_NAME),
+                        rightButton = LightBarButton.LightIcon(
+                            icon = LightIcons.SETTINGS,
+                            onClick = {
+                                navigateTo(screenFactory = { SettingsScreen(it) }) {
+                                    viewModel.refreshConnection()
+                                }
+                            },
+                            contentDescription = "Settings",
+                        ),
                         modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
                     )
 
@@ -84,42 +92,45 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                             .fillMaxWidth()
                             .padding(horizontal = 1f.gridUnitsAsDp()),
                     ) {
-                        LightText(
-                            text = UNOFFICIAL_DISCLAIMER,
-                            variant = LightTextVariant.Superfine,
-                            modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
-                        )
-
-                        LightText(
-                            text = if (state.configured) {
-                                "Server: ${state.baseUrl}"
-                            } else {
-                                "Not configured — open Settings"
-                            },
-                            variant = LightTextVariant.Copy,
-                            modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
-                        )
+                        if (!state.configured) {
+                            LightText(
+                                text = "Not configured — open Settings (gear)",
+                                variant = LightTextVariant.Copy,
+                                modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
+                            )
+                        }
 
                         LightText(
                             text = "Location",
                             variant = LightTextVariant.Superfine,
                         )
                         LightText(
-                            text = viewModel.describeFix(state.fix),
+                            text = viewModel.describeFix(state.fix, state.addressLabel),
                             variant = LightTextVariant.Copy,
                             modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
                         )
+
+                        if (state.autoUploadEnabled && state.configured) {
+                            LightText(
+                                text = "Auto-upload every 5 min while open",
+                                variant = LightTextVariant.Superfine,
+                                modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
+                            )
+                        }
 
                         MenuRow("Nearest places") {
                             navigateTo(screenFactory = { PlacesScreen(it) })
                         }
                         MenuRow("Upload current point") {
-                            viewModel.uploadCurrentPoint()
-                        }
-                        MenuRow("Settings") {
-                            navigateTo(screenFactory = { SettingsScreen(it) }) {
-                                viewModel.refreshConnection()
+                            navigateTo(screenFactory = { UploadPointScreen(it) }) {
+                                viewModel.clearMessages()
+                                if (it == true) {
+                                    viewModel.refreshConnection()
+                                }
                             }
+                        }
+                        MenuRow("About") {
+                            navigateTo(screenFactory = { AboutScreen(it) })
                         }
 
                         if (state.busy) {
@@ -153,6 +164,7 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                                 onClick = {
                                     viewModel.clearMessages()
                                     viewModel.refreshConnection()
+                                    state.fix?.let { viewModel.onFix(it) }
                                 },
                                 contentDescription = "Refresh",
                             ),

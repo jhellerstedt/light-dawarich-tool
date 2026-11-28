@@ -8,19 +8,24 @@ import com.jhellerstedt.dawarich.data.DawarichSettings
 import com.jhellerstedt.dawarich.location.Fix
 import com.jhellerstedt.dawarich.location.FixSource
 import com.jhellerstedt.dawarich.location.LocationHelper
+import com.jhellerstedt.dawarich.util.AddressFormat
 import com.thelightphone.sdk.LightViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 data class HomeUiState(
     val configured: Boolean = false,
-    val baseUrl: String? = null,
+    val autoUploadEnabled: Boolean = true,
     val fix: Fix? = null,
+    val addressLabel: String? = null,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
     val busy: Boolean = false,
@@ -32,9 +37,19 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private var geocodeJob: Job? = null
+    private var autoUploadJob: Job? = null
+    private var lastAutoUploadMs: Long = 0L
+
     init {
         viewModelScope.launch {
             refreshConnection()
+        }
+        viewModelScope.launch {
+            settings.autoUploadEnabled.collect { enabled ->
+                _uiState.update { it.copy(autoUploadEnabled = enabled) }
+                restartAutoUploadLoop()
+            }
         }
     }
 
@@ -44,51 +59,85 @@ class HomeViewModel(
             _uiState.update {
                 it.copy(
                     configured = connection != null,
-                    baseUrl = connection?.baseUrl,
+                    autoUploadEnabled = connection?.autoUploadEnabled
+                        ?: settings.isAutoUploadEnabled(),
                 )
             }
+            restartAutoUploadLoop()
         }
     }
 
     fun onFix(fix: Fix?) {
         _uiState.update { it.copy(fix = fix) }
+        if (fix != null) {
+            requestReverseGeocode(fix)
+        } else {
+            _uiState.update { it.copy(addressLabel = null) }
+        }
     }
 
     fun clearMessages() {
         _uiState.update { it.copy(statusMessage = null, errorMessage = null) }
     }
 
-    fun uploadCurrentPoint() {
+    /** Quiet timeline upload used by the 5-minute auto-upload loop (no note/tag). */
+    fun autoUploadCurrentPoint() {
         viewModelScope.launch {
-            val connection = settings.getConnection()
-            if (connection == null) {
-                _uiState.update { it.copy(errorMessage = "Set base URL and API key in Settings") }
-                return@launch
-            }
-            val fix = _uiState.value.fix ?: LocationHelper.resolveFix()
-            if (fix == null) {
-                _uiState.update {
-                    it.copy(errorMessage = "No location fix. Enable location or set a default.")
-                }
-                return@launch
-            }
-            _uiState.update { it.copy(busy = true, errorMessage = null, statusMessage = null) }
+            val connection = settings.getConnection() ?: return@launch
+            if (!settings.isAutoUploadEnabled()) return@launch
+            val fix = _uiState.value.fix ?: LocationHelper.resolveFix() ?: return@launch
             try {
                 uploadFix(connection, fix)
+                lastAutoUploadMs = System.currentTimeMillis()
                 _uiState.update {
-                    it.copy(
-                        busy = false,
-                        statusMessage = "Uploaded point (${fix.source.name.lowercase()} fix)",
-                    )
+                    it.copy(statusMessage = "Auto-uploaded point", errorMessage = null)
                 }
-            } catch (error: DawarichApiException) {
-                _uiState.update {
-                    it.copy(busy = false, errorMessage = error.message ?: "Upload failed")
+            } catch (_: Exception) {
+                // Keep the loop alive; surface a soft status without blocking the UI.
+                _uiState.update { it.copy(statusMessage = "Auto-upload failed; will retry") }
+            }
+        }
+    }
+
+    private fun restartAutoUploadLoop() {
+        val enabled = _uiState.value.autoUploadEnabled && _uiState.value.configured
+        if (!enabled) {
+            autoUploadJob?.cancel()
+            autoUploadJob = null
+            return
+        }
+        if (autoUploadJob?.isActive == true) return
+        autoUploadJob = viewModelScope.launch {
+            while (isActive) {
+                delay(DawarichSettings.AUTO_UPLOAD_INTERVAL_MS)
+                if (!settings.isAutoUploadEnabled()) break
+                if (settings.getConnection() == null) break
+                val now = System.currentTimeMillis()
+                if (now - lastAutoUploadMs < DawarichSettings.AUTO_UPLOAD_INTERVAL_MS / 2) {
+                    continue
                 }
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(busy = false, errorMessage = error.message ?: "Upload failed")
-                }
+                autoUploadCurrentPoint()
+            }
+        }
+    }
+
+    private fun requestReverseGeocode(fix: Fix) {
+        geocodeJob?.cancel()
+        geocodeJob = viewModelScope.launch {
+            val connection = settings.getConnection()
+            if (connection == null) {
+                _uiState.update { it.copy(addressLabel = null) }
+                return@launch
+            }
+            val client = settings.openClient(connection)
+            try {
+                val nearby = client.nearbyPlaces(fix.latitude, fix.longitude)
+                val label = AddressFormat.fromNearby(nearby.firstOrNull())
+                _uiState.update { it.copy(addressLabel = label) }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(addressLabel = null) }
+            } finally {
+                client.close()
             }
         }
     }
@@ -112,13 +161,15 @@ class HomeViewModel(
         }
     }
 
-    fun describeFix(fix: Fix?): String {
+    fun describeFix(fix: Fix?, addressLabel: String?): String {
         if (fix == null) return "No fix yet"
         val source = when (fix.source) {
             FixSource.Current -> "GPS"
             FixSource.Default -> "default"
         }
         val accuracy = fix.accuracyMeters?.let { " ±${it.toInt()}m" }.orEmpty()
-        return String.format("%.5f, %.5f (%s%s)", fix.latitude, fix.longitude, source, accuracy)
+        val primary = addressLabel?.takeIf { it.isNotBlank() }
+            ?: AddressFormat.coordinates(fix.latitude, fix.longitude)
+        return "$primary ($source$accuracy)"
     }
 }

@@ -122,6 +122,17 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                             }
                         }
 
+                        SettingRow(
+                            label = "Auto-upload every 5 min",
+                            value = if (state.autoUploadEnabled) {
+                                "On (while tool is open)"
+                            } else {
+                                "Off"
+                            },
+                        ) {
+                            viewModel.toggleAutoUpload()
+                        }
+
                         LightText(
                             text = "Clear settings",
                             variant = LightTextVariant.Copy,
