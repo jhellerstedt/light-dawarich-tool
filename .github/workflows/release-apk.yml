@@ -68,8 +68,27 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # Maven Central / plugins.gradle.org occasionally return HTTP 429 during
+      # cold CI resolves; retry a few times before failing the release.
       - name: Test and build release APK
-        run: ./gradlew :tool:test :tool:assembleRelease --stacktrace
+        run: |
+          set -euo pipefail
+          attempt=1
+          max_attempts=4
+          delay=30
+          while true; do
+            if ./gradlew :tool:test :tool:assembleRelease --stacktrace; then
+              exit 0
+            fi
+            if (( attempt >= max_attempts )); then
+              echo "::error::Gradle release build failed after ${max_attempts} attempts"
+              exit 1
+            fi
+            echo "::warning::Gradle release build failed (attempt ${attempt}/${max_attempts}); retrying in ${delay}s"
+            sleep "${delay}"
+            attempt=$((attempt + 1))
+            delay=$((delay * 2))
+          done
 
       - name: Collect APK
         run: |
