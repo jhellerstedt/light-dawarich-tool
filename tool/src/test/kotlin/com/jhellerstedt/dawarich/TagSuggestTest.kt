@@ -32,4 +32,38 @@ class TagSuggestTest {
         assertEquals(1, TagSuggest.resolveId(tags, "cafe"))
         assertEquals(null, TagSuggest.resolveId(tags, "unknown"))
     }
+
+    @Test
+    fun rememberRecentPutsNewestFirstAndCapsAtTwo() {
+        assertEquals(
+            listOf("Park"),
+            TagSuggest.rememberRecent("Park", emptyList()),
+        )
+        assertEquals(
+            listOf("Cafe", "Park"),
+            TagSuggest.rememberRecent("Cafe", listOf("Park")),
+        )
+        assertEquals(
+            listOf("Coffee", "Cafe"),
+            TagSuggest.rememberRecent("Coffee", listOf("Cafe", "Park")),
+        )
+        // Re-selecting moves to front without duplicating.
+        assertEquals(
+            listOf("Park", "Coffee"),
+            TagSuggest.rememberRecent("Park", listOf("Coffee", "Park")),
+        )
+    }
+
+    @Test
+    fun filterSuggestionsPrefersRecentWhenQueryBlank() {
+        val recent = listOf("Park", "Cafe")
+        assertEquals(
+            listOf("Park", "Cafe", "Coffee"),
+            TagSuggest.filterSuggestions(tags, query = "", recent = recent, limit = 8),
+        )
+        assertEquals(
+            listOf("Cafe", "Coffee"),
+            TagSuggest.filterSuggestions(tags, query = "c", recent = recent, limit = 8),
+        )
+    }
 }

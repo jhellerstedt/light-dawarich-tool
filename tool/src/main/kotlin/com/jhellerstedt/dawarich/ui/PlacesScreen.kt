@@ -84,11 +84,12 @@ class PlacesScreen(sealedActivity: SealedLightActivity) :
                             .fillMaxWidth()
                             .padding(horizontal = 1f.gridUnitsAsDp()),
                     ) {
+                        val filterLabel = state.filterTagQuery.trim().ifBlank { "all" }
                         LightText(
                             text = buildString {
                                 append(if (state.usingCache) "Cached" else "Live")
                                 append(" · ")
-                                append(if (state.filterTaggedOnly) "tagged" else "all")
+                                append(filterLabel)
                                 append(" · open Directions manually with the address")
                             },
                             variant = LightTextVariant.Superfine,
@@ -103,18 +104,91 @@ class PlacesScreen(sealedActivity: SealedLightActivity) :
                                 .padding(vertical = 0.5f.gridUnitsAsDp())
                                 .lightClickable(onClick = { viewModel.syncPlaces() }),
                         )
+
                         LightText(
-                            text = if (state.filterTaggedOnly) {
-                                "Filter: tagged only (tap to show all)"
-                            } else {
-                                "Filter: all (tap for tagged only)"
-                            },
+                            text = "Filter tag",
+                            variant = LightTextVariant.Superfine,
+                            modifier = Modifier.padding(top = 0.5f.gridUnitsAsDp()),
+                        )
+                        LightText(
+                            text = state.filterTagQuery.ifBlank { "All places — tap to type" },
                             variant = LightTextVariant.Copy,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 0.5f.gridUnitsAsDp())
-                                .lightClickable(onClick = { viewModel.toggleTaggedFilter() }),
+                                .padding(vertical = 0.25f.gridUnitsAsDp())
+                                .lightClickable(onClick = {
+                                    editText(
+                                        title = "Filter tag",
+                                        text = state.filterTagQuery,
+                                        singleLine = true,
+                                    ) { result ->
+                                        if (result is LightTextEditResult.Submitted) {
+                                            viewModel.setFilterTagQuery(result.text)
+                                        }
+                                    }
+                                }),
                         )
+                        if (state.filterTagQuery.isNotBlank()) {
+                            LightText(
+                                text = "Clear filter",
+                                variant = LightTextVariant.Copy,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 0.25f.gridUnitsAsDp())
+                                    .lightClickable(onClick = { viewModel.clearFilterTag() }),
+                            )
+                        }
+
+                        val recentShown = if (state.filterTagQuery.isBlank()) {
+                            state.recentFilterTags.filter { recent ->
+                                state.tagSuggestions.any { it.equals(recent, ignoreCase = true) }
+                            }.take(2)
+                        } else {
+                            emptyList()
+                        }
+                        if (recentShown.isNotEmpty()) {
+                            LightText(
+                                text = "Recent",
+                                variant = LightTextVariant.Superfine,
+                                modifier = Modifier.padding(top = 0.5f.gridUnitsAsDp()),
+                            )
+                            recentShown.forEach { suggestion ->
+                                LightText(
+                                    text = suggestion,
+                                    variant = LightTextVariant.Copy,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 0.35f.gridUnitsAsDp())
+                                        .lightClickable(onClick = {
+                                            viewModel.selectFilterTag(suggestion)
+                                        }),
+                                )
+                            }
+                        }
+
+                        val autocomplete = state.tagSuggestions.filter { name ->
+                            recentShown.none { it.equals(name, ignoreCase = true) }
+                        }
+                        if (autocomplete.isNotEmpty()) {
+                            LightText(
+                                text = "Suggestions",
+                                variant = LightTextVariant.Superfine,
+                                modifier = Modifier.padding(top = 0.5f.gridUnitsAsDp()),
+                            )
+                            autocomplete.forEach { suggestion ->
+                                LightText(
+                                    text = suggestion,
+                                    variant = LightTextVariant.Copy,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 0.35f.gridUnitsAsDp())
+                                        .lightClickable(onClick = {
+                                            viewModel.selectFilterTag(suggestion)
+                                        }),
+                                )
+                            }
+                        }
+
                         LightText(
                             text = "Star / save here",
                             variant = LightTextVariant.Copy,

@@ -9,7 +9,7 @@ The tool id is `com.jhellerstedt.dawarich`. The current version is in [`tool/lig
 You point the tool at your self-hosted Dawarich base URL (HTTP or HTTPS) and sign in from **Settings** (gear, upper right) by scanning the Account → API access QR code, or by pasting an API key. From the home screen you can:
 
 - See the current GPS fix as a nearby street address when Dawarich reverse-geocoding works (coordinates as fallback)
-- Sync places, sort them by distance, and filter tagged places
+- Sync places, sort them by distance, and filter by tag (autocomplete from place tags, plus two recent filters)
 - Star / save a place at the current fix
 - Manually upload the current fix as a timeline point, with an optional note and tag (tag suggestions come from place tags on the server)
 - Auto-upload a point every 5 minutes while the tool is open (on by default; toggle in Settings)

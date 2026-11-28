@@ -26,4 +26,48 @@ object TagSuggest {
         if (trimmed.isEmpty()) return null
         return uniqueSorted(tags).firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.id
     }
+
+    /** Newest-first recent list, capped at [limit] (default 2 for filter chips). */
+    fun rememberRecent(
+        name: String,
+        existing: List<String>,
+        limit: Int = 2,
+    ): List<String> {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return existing.take(limit)
+        val without = existing.filterNot { it.equals(trimmed, ignoreCase = true) }
+        return (listOf(trimmed) + without).take(limit)
+    }
+
+    /**
+     * Autocomplete for filter/upload fields. Blank query surfaces [recent] first
+     * (still present among known tags), then remaining tag names.
+     */
+    fun filterSuggestions(
+        tags: Iterable<DawarichTag>,
+        query: String,
+        recent: List<String> = emptyList(),
+        limit: Int = 8,
+    ): List<String> {
+        val unique = uniqueSorted(tags)
+        val knownNames = unique.map { it.name }
+        val knownLower = knownNames.map { it.lowercase() }.toSet()
+        val recentKnown = recent
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it.lowercase() in knownLower }
+            .distinctBy { it.lowercase() }
+            .map { recentName ->
+                knownNames.first { it.equals(recentName, ignoreCase = true) }
+            }
+
+        val q = query.trim()
+        if (q.isEmpty()) {
+            val rest = knownNames.filter { name ->
+                recentKnown.none { it.equals(name, ignoreCase = true) }
+            }
+            return (recentKnown + rest).take(limit)
+        }
+
+        return filterNames(unique, q).take(limit)
+    }
 }
